@@ -8,6 +8,11 @@ use std::{
 #[cfg(feature = "yarn_pnp")]
 use pnp::fs::{LruZipCache, VPath, VPathInfo, ZipCache};
 
+#[cfg(target_os = "linux")]
+const SAFE_STATX_DONT_SYNC: rustix::fs::AtFlags = {
+    rustix::fs::AtFlags::from_bits_retain(0x4000)
+};
+
 use crate::ResolveError;
 
 /// File System abstraction used for `ResolverGeneric`
@@ -187,8 +192,8 @@ impl FileSystemOs {
                 Ok(result.into())
             }
             target_os = "linux" => {
-                use rustix::fs::{AtFlags, CWD, FileType, StatxFlags};
-                match rustix::fs::statx(CWD, path, AtFlags::STATX_DONT_SYNC, StatxFlags::TYPE) {
+                use rustix::fs::{CWD, FileType, StatxFlags};
+                match rustix::fs::statx(CWD, path, SAFE_STATX_DONT_SYNC, StatxFlags::TYPE) {
                     Ok(statx) => {
                         let file_type = FileType::from_raw_mode(statx.stx_mode.into());
                         Ok(FileMetadata::new(file_type.is_file(), file_type.is_dir(), file_type.is_symlink()))
